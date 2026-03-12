@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>MoviWeb App</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="flash-popup {{ category }}">
+            {{ message }}
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+    <h1>MoviWeb - User Management</h1>
+    <h2>Add New User</h2>
+    <form action="/users" method="POST">
+        <input type="text" name="name" placeholder="Enter user name" required>
+        <button type="submit">Add User</button>
+    </form>
+    <hr>
+    <h2>Registered Users</h2>
+    <ul>
+        {% for user in users %}
+            <li>
+                <a href="/users/{{ user.id }}/movies">{{ user.name }}</a>
+            </li>
+        {% else %}
+            <li>No users registered yet.</li>
+        {% endfor %}
+    </ul>
+</body>
+</html>

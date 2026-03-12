@@ -2,7 +2,7 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 
-# Lädt die .env Variablen in das System-Environment
+
 load_dotenv()
 
 

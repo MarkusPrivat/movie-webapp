@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, flash, render_template, request, redirect, url_for
 from sqlalchemy import inspect
 
 from data.data_manager import DataManager
@@ -12,20 +12,47 @@ app.config.from_object(AppSettings)
 db.init_app(app)
 data_manager = DataManager()
 
+
 @app.route('/')
 def home():
-    # TODO: Zeigt eine Liste aller registrierten Nutzer und ein Formular zum Hinzufügen#
-    #       neuer Nutzer. (Diese Route verwendet standardmäßig GET.
-    return "Welcome to MoviWeb App!"
+    """
+    Renders the home page, displaying a list of all registered users
+    and a form to add a new user.
+
+    Fetches user data from the DataManager. If the retrieval fails,
+    an error message is flashed to the user.
+
+    Returns:
+        Response: The rendered HTML page with the list of users.
+    """
+    success, result = data_manager.get_all_users()
+
+    if not success:
+        flash(result, 'error')
+        return render_template('home.html', users=[])
+
+    return render_template('home.html', users=result)
 
 
 @app.route('/users', methods=['POST'])
 def add_user():
-    # TODO: Wenn der Nutzer das „Nutzer hinzufügen“-Formular abschickt, wird eine
-    #       POST-Anfrage ausgelöst. Der Server erhält die neuen Nutzerdaten, fügt
-    #       sie der Datenbank hinzu und leitet dann zurück zu /.
-    users = data_manager.get_users()
-    return str(users)  # Temporarily returning users as a string
+    """
+    Handles the POST request to add a new user to the system.
+
+    Retrieves the username from the form data and uses the DataManager
+    to persist it to the database. Flashes a success or error message
+    based on the outcome and redirects the user back to the home page.
+
+    Returns:
+        Response: A redirect to the 'home' route.
+    """
+    user_name = request.form.get('name')
+
+    if user_name:
+        success, message = data_manager.add_user(user_name)
+        flash(message, 'success' if success else 'error')
+
+    return redirect(url_for('home'))
 
 
 @app.route('/users/<int:user_id>/movies', methods=['GET'])
