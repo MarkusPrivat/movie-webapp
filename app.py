@@ -8,9 +8,10 @@ from config import AppSettings
 
 app = Flask(__name__)
 app.config.from_object(AppSettings)
-
-db.init_app(app)
 data_manager = DataManager()
+data_manager.init_app(app)
+db.init_app(app)
+
 
 
 @app.route('/')
@@ -55,17 +56,80 @@ def add_user():
     return redirect(url_for('home'))
 
 
-@app.route('/users/<int:user_id>/movies', methods=['GET'])
-def users_movies():
-    # TODO: Wenn du auf einen Nutzernamen klickst, ruft die App die Liste der
-    #       Lieblingsfilme dieses Nutzers ab und zeigt sie an.
-    pass
+@app.route('/users/<int:user_id>/movies', methods=['GET', 'POST'])
+def users_movies(user_id):
+    """
+    Handles the viewing and adding of movies for a specific user.
+
+    Args:
+        user_id (int): The unique identifier of the user.
+
+    Behavior:
+        GET: Retrieves the user's movie list from the data manager and
+             renders the 'movies.html' template.
+        POST: Adds a movie to the user's collection using its IMDb ID.
+              Validates the presence of 'imdb_id' and triggers a flash
+              message based on the operation's success.
+
+    Returns:
+        A rendered template for GET requests, or a redirect to the user's
+        movie list for POST requests.
+    """
+    if request.method == 'GET':
+        success, result = data_manager.get_movies(user_id)
+        if not success:
+            flash(result, 'error')
+            return render_template('movies.html', movies=[], user_id=user_id)
+        return render_template('movies.html', movies=result, user_id=user_id)
+
+    if request.method == 'POST':
+        imdb_id = request.form.get('imdb_id')
+        if not imdb_id:
+            flash("Missing parameter imdb_id.", "error")
+            return redirect(url_for('users_movies', user_id=user_id))
+
+        success, message = data_manager.add_movie_by_id(user_id, imdb_id
+        flash(message, 'success' if success else 'error')
+        return redirect(url_for('users_movies', user_id=user_id))
 
 
-@app.route('/users/<int:user_id>/movies', methods=['POST'])
-def add_users_movie():
-    # TODO: Fügt einen neuen Film zur Favoritenliste eines Nutzers hinzu.
-    pass
+@app.route('/users/<int:user_id>/omdb_result', methods=['POST'])
+def choose_movie_to_add(user_id):
+    """
+    Searches for movies via the OMDb API and displays the results.
+
+    Args:
+        user_id (int): The unique identifier of the user performing the search.
+
+    Behavior:
+        Extracts the 'movie_title' from the request form, queries the OMDb API
+        via the data manager, and renders the 'omdb_result.html' template
+        with the list of found movies.
+
+        If the API call fails or no movies are found, it flashes an
+        appropriate message and redirects the user back to their collection.
+
+    Returns:
+        Rendered 'omdb_result.html' template if movies are found, or a
+        redirect to the user's movie list.
+    """
+    movie_title = request.form.get('movie_title')
+    success, result = data_manager.search_movie_at_omdb(movie_title)
+    if not success:
+        flash(f"API Error: {result}", "error")
+        return redirect(url_for('users_movies', user_id=user_id))
+
+    found_movies = result.get('Search', [])
+    if not found_movies:
+        flash(f"No movies found for '{movie_title}'.", "info")
+
+    return render_template(
+        'omdb_result.html',
+        movies=found_movies,
+        user_id=user_id
+    )
+
+
 
 
 @app.route('/users/<int:user_id>/movies/<int:movie_id>/update', methods=['POST'])

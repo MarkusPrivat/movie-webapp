@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Movie WebApp - Collection</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="flash-popup {{ category }}">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <h1>Movie Collection: </h1>
+
+    <section class="add-movie-section">
+        <h3>Add a new movie</h3>
+        <form action="/users/{{ user_id }}/omdb_result" method="POST">
+            <input type="text" name="movie_title" placeholder="Enter movie title..." required>
+            <button type="submit">Add movie</button>
+        </form>
+    </section>
+
+    <hr>
+
+    <div class="movie-grid">
+        {% for movie in movies %}
+            <div class="movie-card">
+                <img src="{{ movie.poster_url }}" alt="Poster of {{ movie.title }}">
+                <div class="card-content">
+                    <h3>{{ movie.title }}</h3>
+                    <p>Year: {{ movie.year }}</p>
+                    <p>Director: <strong>{{ movie.director }}</strong></p>
+                </div>
+            </div>
+        {% else %}
+            <p>No movies in your list yet.</p>
+        {% endfor %}
+    </div>
+
+</body>
+</html>

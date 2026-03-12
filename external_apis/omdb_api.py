@@ -50,36 +50,43 @@ from flask import current_app
 
 
 
-def _make_api_request(params: dict) -> tuple[bool, dict | str]:
+class OMDbAPI:
     """
-    Internal helper to handle the technical details of the OMDb API call.
+    Handles communication with the OMDb API.
     """
-    params['apikey'] = current_app.config['OMDB_API_KEY']
-    base_url = current_app.config['OMDB_API_BASE_URL']
-    try:
-        response = requests.get(
-            base_url,
-            params=params,
-            timeout=1)
-        response.raise_for_status()
-        data = response.json()
-
-        if data.get("Response") == 'True':
-            return True, data
-        return False, data.get('Error',"Unknown API Error")
-
-    except requests.exceptions.Timeout:
-        return False, "The request timed out. Please try again later."
-    except requests.exceptions.ConnectionError:
-        return False, "Network error. Check your internet connection."
-    except requests.exceptions.HTTPError as http_err:
-        return False, f"HTTP error occurred: {http_err}"
-    except requests.exceptions.RequestException as error:
-        return False, f"An unexpected error occurred: {error}"
+    def __init__(self, api_key: str, base_url: str):
+        self.api_key = api_key
+        self.base_url = base_url
 
 
-def get_movie_data_from_title_and_year(title: str, year: int) -> tuple[bool, dict | str]:
-    """
+    def _make_api_request(self, params: dict) -> tuple[bool, dict | str]:
+        """
+        Internal helper to handle the technical details of the OMDb API call.
+        """
+        params['apikey'] = self.api_key
+        try:
+            response = requests.get(
+                self.base_url,
+                params=params,
+                timeout=5)
+            response.raise_for_status()
+            data = response.json()
+
+            if data.get("Response") == 'True':
+                return True, data
+            return False, data.get('Error',"Unknown API Error")
+
+        except requests.exceptions.Timeout:
+            return False, "The request timed out. Please try again later."
+        except requests.exceptions.ConnectionError:
+            return False, "Network error. Check your internet connection."
+        except requests.exceptions.HTTPError as http_err:
+            return False, f"HTTP error occurred: {http_err}"
+        except requests.exceptions.RequestException as error:
+            return False, f"An unexpected error occurred: {error}"
+
+    def get_movie_by_title_and_year(self, title: str, year: int = None) -> tuple[bool, dict | str]:
+        """
         Fetches detailed movie data from OMDb API by title and year.
 
         Args:
@@ -90,15 +97,14 @@ def get_movie_data_from_title_and_year(title: str, year: int) -> tuple[bool, dic
             tuple[bool, dict | str]: (True, data_dict) on success,
                                      (False, error_message) on failure.
         """
-    return _make_api_request({
-        't': title,
-        'y': year
-    })
+        return self._make_api_request({
+            't': title,
+            'y': year
+        })
 
 
-
-def search_movie_title(title: str) -> tuple[bool, dict | str]:
-    """
+    def search_movie_title(self, title: str) -> tuple[bool, dict | str]:
+        """
         Searches the OMDb database for movies matching a partial title.
 
         Unlike a direct title lookup, this function returns a list of potential
@@ -112,8 +118,26 @@ def search_movie_title(title: str) -> tuple[bool, dict | str]:
             tuple[bool, dict | str]:
                 - Success (True) and a dictionary containing the 'Search' list.
                 - Failure (False) and an error message string.
-    """
-    return _make_api_request({
-        's': title,
-        'type': 'movie'
-    })
+        """
+        return self._make_api_request({
+            's': title,
+            'type': 'movie'
+        })
+
+    def get_movie_by_id(self, imdb_id: str) -> tuple[bool, dict | str]:
+        """
+        Fetches detailed movie information from the OMDb API by its IMDb ID.
+
+        Args:
+            imdb_id (str): The unique IMDb identifier for the requested movie.
+
+        Returns:
+            tuple[bool, dict | str]:
+                - A tuple where the first element indicates success (True/False).
+                - The second element is a dictionary with movie details if
+                  successful, or an error message string if the request fails.
+        """
+        return self._make_api_request({
+            'i': imdb_id,
+            'plot': 'full'
+        })

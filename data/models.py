@@ -156,6 +156,7 @@ class Movie(db.Model):
         director (str): The director of the movie (max 100 chars).
         year (int): The release year.
         poster_url (Optional[str]): A link to the movie poster image.
+        imdb_id (str): The unique IMDb identifier from the OMDb API.
         movie_users_link (List[UserMovies]): A list of association objects
             tracking which users have added this movie to their favorites.
     """
@@ -166,6 +167,7 @@ class Movie(db.Model):
     director: Mapped[str] = mapped_column(String(100), nullable=False)
     year: Mapped[int] = mapped_column(Integer, nullable=False)
     poster_url: Mapped[Optional[str]] = mapped_column(String(500))
+    imdb_id: Mapped[str] = mapped_column(String(20), unique=True, nullable=False)
 
     movie_users_link: Mapped[List["UserMovies"]] = relationship(
         back_populates="movie", cascade="all, delete-orphan"
