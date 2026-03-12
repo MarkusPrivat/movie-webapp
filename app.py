@@ -20,7 +20,45 @@ data_manager = DataManager()
 
 @app.route('/')
 def home():
+    # TODO: Zeigt eine Liste aller registrierten Nutzer und ein Formular zum Hinzufügen#
+    #       neuer Nutzer. (Diese Route verwendet standardmäßig GET.
     return "Welcome to MoviWeb App!"
+
+
+@app.route('/users', methods=['POST'])
+def add_user():
+    # TODO: Wenn der Nutzer das „Nutzer hinzufügen“-Formular abschickt, wird eine
+    #       POST-Anfrage ausgelöst. Der Server erhält die neuen Nutzerdaten, fügt
+    #       sie der Datenbank hinzu und leitet dann zurück zu /.
+    users = data_manager.get_users()
+    return str(users)  # Temporarily returning users as a string
+
+
+@app.route('/users/<int:user_id>/movies', methods=['GET'])
+def users_movies():
+    # TODO: Wenn du auf einen Nutzernamen klickst, ruft die App die Liste der
+    #       Lieblingsfilme dieses Nutzers ab und zeigt sie an.
+    pass
+
+
+@app.route('/users/<int:user_id>/movies', methods=['POST'])
+def add_users_movie():
+    # TODO: Fügt einen neuen Film zur Favoritenliste eines Nutzers hinzu.
+    pass
+
+
+@app.route('/users/<int:user_id>/movies/<int:movie_id>/update', methods=['POST'])
+def update_user_movie():
+    # TODO: Den Titel eines bestimmten Films in der Liste eines Nutzers ändern,
+    #       ohne sich auf OMDb für Korrekturen zu verlassen.
+    pass
+
+
+@app.route('/users/<int:user_id>/movies/<int:movie_id>/delete', methods=['POST'])
+def delete_user_movie():
+    # TODO: Entfernt einen bestimmten Film aus der Liste der Lieblingsfilme eines Nutzers.
+    pass
+
 
 
 def init_db():
@@ -37,7 +75,7 @@ def init_db():
     with app.app_context():
         inspector = inspect(db.engine)
 
-        if not inspector.has_table("UserMovies"):
+        if not inspector.has_table("user_movies"):
             print("Database tables not found. Creating tables...")
             db.create_all()
             print("Tables created successfully.")
