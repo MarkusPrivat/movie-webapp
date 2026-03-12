@@ -1,6 +1,7 @@
 from sqlalchemy import select
 
-from models import db, User, Movie
+from data.models import db, User, Movie, UserMovies
+
 
 class DataManager():
     #TODO: Define Crud operations as methods
@@ -37,6 +38,7 @@ class DataManager():
 
     def update_movie(self, movie_id, new_title):
         #TODO: Aktualisiere die Details eines bestimmten Films in der Datenbank.
+        pass
 
     def update_details(self, new_title: str = None, new_director: str = None, new_year: int = None):
         if new_title:
