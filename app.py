@@ -1,19 +1,13 @@
-from pathlib import Path
-
 from flask import Flask
 from sqlalchemy import inspect
 
 from data.data_manager import DataManager
 from data.models import db, Movie
+from config import AppSettings
 
-
-PROJECT_ROOT = Path(__file__).parent
-DATABASE_PATH = PROJECT_ROOT / "data/data.sqlite"
 
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{DATABASE_PATH.as_posix()}"
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.secret_key = "Lorem-Secret!-ipsum"
+app.config.from_object(AppSettings)
 
 db.init_app(app)
 data_manager = DataManager()

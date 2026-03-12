@@ -1,3 +1,5 @@
 flask
 SQLAlchemy
 flask_sqlalchemy
+dotenv
+requests
