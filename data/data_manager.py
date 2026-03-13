@@ -199,10 +199,7 @@ class DataManager():
                 - A message string (MovieMessages.ADD_SUCCESS or
                   MovieMessages.ALREADY_IN_COLLECTION).
         """
-        already_linked = db.session.query(UserMovies).filter_by(
-            user_id=user_id, movie_id=movie.id
-        ).first()
-        if already_linked:
+        if self._get_user_movie_link(movie, user_id):
             return False, MovieMessages.ALREADY_IN_COLLECTION
 
         new_link = UserMovies(user_id=user_id, movie_id=movie.id)
@@ -210,11 +207,49 @@ class DataManager():
         db.session.commit()
         return True, MovieMessages.ADD_SUCCESS
 
+    def _get_user_movie_link(self, movie: Movie, user_id: int) -> UserMovies | None:
+        """
+        Retrieves the association link between a user and a movie.
+
+        Args:
+            movie (Movie): The movie instance to check.
+            user_id (int): The unique identifier of the user.
+
+        Returns:
+            UserMovies | None: The association object if it exists, otherwise None.
+        """
+        return db.session.query(UserMovies).filter_by(
+            user_id=user_id,
+            movie_id=movie.id
+        ).first()
+
+    def user_movie_title_override(
+            self,
+            user_id: int,
+            movie: Movie,
+            new_title: str) -> tuple[bool, str]:
+        """
+        Updates the local title override for a specific movie in a user's collection.
+
+        Args:
+            user_id (int): The unique identifier of the user.
+            movie (Movie): The movie instance to be updated.
+            new_title (str): The new title to be set for this specific user.
+
+        Returns:
+            tuple[bool, str]:
+                - A tuple indicating success (True/False).
+                - A message string describing the outcome of the update operation.
+        """
+        user_movie_link = self._get_user_movie_link(movie, user_id)
+        if not user_movie_link:
+            return False, MovieMessages.NOT_IN_COLLECTION
+
+        user_movie_link.user_title_override = new_title
+        db.session.commit()
+        return True, MovieMessages.TITLE_UPDATE
 
 
-    def update_movie(self, movie_id, new_title):
-        #TODO: Aktualisiere die Details eines bestimmten Films in der Datenbank.
-        pass
 
     def update_details(self, new_title: str = None, new_director: str = None, new_year: int = None):
         if new_title:

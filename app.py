@@ -88,7 +88,7 @@ def users_movies(user_id):
             flash("Missing parameter imdb_id.", "error")
             return redirect(url_for('users_movies', user_id=user_id))
 
-        success, message = data_manager.add_movie_by_id(user_id, imdb_id
+        success, message = data_manager.add_movie_by_id(user_id, imdb_id)
         flash(message, 'success' if success else 'error')
         return redirect(url_for('users_movies', user_id=user_id))
 

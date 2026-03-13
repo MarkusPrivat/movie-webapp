@@ -76,6 +76,7 @@ class UserMovies(db.Model):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), primary_key=True)
     movie_id: Mapped[int] = mapped_column(ForeignKey("movies.id"), primary_key=True)
     added_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc))
+    user_title_override: Mapped[Optional[str]] = mapped_column(String(200))
 
     # Relationships to the parent models
     user: Mapped["User"] = relationship(back_populates="user_movies_link")
