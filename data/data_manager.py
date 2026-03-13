@@ -287,19 +287,27 @@ class DataManager():
         db.session.commit()
         return True, MovieMessages.TITLE_UPDATE
 
+    def delete_movie(self, user_id: int, movie: Movie) -> tuple[bool, str]:
+        """
+        Removes a movie from a user's collection by deleting the association link.
 
+        Args:
+            movie (Movie): The movie object to be removed.
+            user_id (int): The unique identifier of the user.
 
-    def update_details(self, new_title: str = None, new_director: str = None, new_year: int = None):
-        if new_title:
-            self.title = new_title
-        if new_director:
-            self.director = new_director
-        if new_year:
-            self.year = new_year
+        Returns:
+            tuple[bool, str]:
+                - A tuple where the first element indicates success (True/False).
+                - The second element is a success or error message string.
+        """
+        try:
+            user_movie_link = self._get_user_movie_link(movie, user_id)
+            if not user_movie_link:
+                return False, MovieMessages.NOT_IN_COLLECTION
 
-    def delete_movie(self, movie_id):
-        #TODO: Entferne den Film aus der Favoritenliste des Nutzers.
-        self.user_movies_link = [
-            link for link in self.user_movies_link
-            if link.movie_id != movie_id
-        ]
+            db.session.delete(user_movie_link)
+            db.session.commit()
+            return True, MovieMessages.REMOVE_SUCCESS
+        except Exception as error:
+            db.session.rollback()
+            return False, f"{MovieMessages.REMOVE_ERROR} {error}"

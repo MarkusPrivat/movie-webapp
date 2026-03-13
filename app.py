@@ -174,11 +174,30 @@ def update_user_movie(user_id, movie_id):
         return redirect(url_for('users_movies', user_id=user_id))
 
 
-
 @app.route('/users/<int:user_id>/movies/<int:movie_id>/delete', methods=['POST'])
-def delete_user_movie():
-    # TODO: Entfernt einen bestimmten Film aus der Liste der Lieblingsfilme eines Nutzers.
-    pass
+def delete_user_movie(user_id, movie_id):
+    """
+    Removes a specific movie from a user's collection.
+
+    The route first verifies that the movie exists in the user's collection
+    via the data manager, then proceeds to delete the association.
+
+    Args:
+        user_id (int): The unique identifier of the user.
+        movie_id (int): The unique identifier of the movie to be removed.
+
+    Returns:
+        Response: Redirects to the user's movie list with a success or
+                  error message flashed to the user.
+    """
+    success, result = data_manager.get_movie(user_id, movie_id)
+    if not success:
+        flash(result, "error")
+        return redirect(url_for('users_movies', user_id=user_id))
+
+    success, message = data_manager.delete_movie(result, user_id)
+    flash(message, "success" if success else "error")
+    return redirect(url_for('users_movies', user_id=user_id))
 
 
 
