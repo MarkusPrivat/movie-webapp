@@ -195,7 +195,7 @@ def delete_user_movie(user_id, movie_id):
         flash(result, "error")
         return redirect(url_for('users_movies', user_id=user_id))
 
-    success, message = data_manager.delete_movie(result, user_id)
+    success, message = data_manager.delete_movie(user_id, result)
     flash(message, "success" if success else "error")
     return redirect(url_for('users_movies', user_id=user_id))
 
