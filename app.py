@@ -200,6 +200,37 @@ def delete_user_movie(user_id, movie_id):
     return redirect(url_for('users_movies', user_id=user_id))
 
 
+@app.errorhandler(404)
+def page_not_found(error):
+    """
+    Handles 404 Not Found errors by rendering a custom error page.
+
+    Args:
+        error: The exception instance raised.
+
+    Returns:
+        tuple: A tuple containing the rendered 404.html template
+               and the 404 status code.
+    """
+    return render_template('404.html'), 404
+
+
+@app.errorhandler(500)
+def internal_server_error(error):
+    """
+    Handles 500 Internal Server Error by logging the exception
+    and rendering a custom error page.
+
+    Args:
+        error: The exception instance raised by the server.
+
+    Returns:
+        tuple: A tuple containing the rendered 500.html template
+               and the 500 status code.
+    """
+    app.logger.error(f"Server Error: {error}")
+    return render_template('500.html'), 500
+
 
 def init_db():
     """
