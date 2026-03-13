@@ -1,22 +1,22 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <title>Update Movie Title</title>
-    </head>
-<body>
+{% extends "base.html" %}
+
+{% block content %}
     <h1>Update Movie Title</h1>
 
     <div class="movie_card">
-        <img src="{{ movie.image_url }}" alt="{{ movie.title }}">
+        <img src="{{ movie.poster_url }}" alt="{{ movie.title }}">
         <h3>Current: {{ movie.title }}</h3>
 
         <form method="POST" action="{{ url_for('update_user_movie', user_id=user_id, movie_id=movie.id) }}">
             <label for="new_title">New Title:</label>
-            <input type="text" id="new_title" name="new_title" value="{{ movie.title }}" required>
+            <input type="text" 
+                   id="new_title" 
+                   name="new_title" 
+                   value="{{ movie.user_title_override or movie.title }}"
+                   required>
 
             <button type="submit">Update Title</button>
             <a href="{{ url_for('users_movies', user_id=user_id) }}">Cancel</a>
         </form>
     </div>
-</body>
-</html>
+{% endblock %}

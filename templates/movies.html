@@ -1,25 +1,11 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Movie WebApp - Collection</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-</head>
-<body>
+{% extends "base.html" %}
 
-    {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}
-        {% for category, message in messages %}
-          <div class="flash-popup {{ category }}">{{ message }}</div>
-        {% endfor %}
-      {% endif %}
-    {% endwith %}
-
+{% block content %}
     <h1>Movie Collection: </h1>
 
     <section class="add-movie-section">
         <h3>Add a new movie</h3>
-        <form action="/users/{{ user_id }}/omdb_result" method="POST">
+        <form action="{{ url_for('choose_movie_to_add', user_id=user_id) }}" method="POST">
             <input type="text" name="movie_title" placeholder="Enter movie title..." required>
             <button type="submit">Add movie</button>
         </form>
@@ -30,38 +16,34 @@
     <div class="movie-grid">
         {% for user_movie, movie in movies %}
         <div class="movie-card">
-        <img src="{{ movie.poster_url }}" alt="Poster of {{ movie.title }}">
-        <div class="card-content">
-            {% if user_movie.user_title_override %}
-                <h3>{{ user_movie.user_title_override }}</h3>
-                <p style="font-size: 0.8em; color: gray;">Original: {{ movie.title }}</p>
-            {% else %}
-                <h3>{{ movie.title }}</h3>
-            {% endif %}
-            <p>Year: {{ movie.year }}</p>
-            <p>Director: <strong>{{ movie.director }}</strong></p>
-            <p class="date-added">
-                Added on: {{ user_movie.added_at.strftime('%Y-%m-%d') }}
-            </p>
-            <form action="{{ url_for('update_user_movie', user_id=user_id, movie_id=movie.id) }}"
-                  method="GET"
-                  style="display: inline;">
+            <img src="{{ movie.poster_url }}" alt="Poster of {{ movie.title }}">
+            <div class="card-content">
+                {% if user_movie.user_title_override %}
+                    <h3>{{ user_movie.user_title_override }}</h3>
+                    <p style="font-size: 0.8em; color: gray;">Original: {{ movie.title }}</p>
+                {% else %}
+                    <h3>{{ movie.title }}</h3>
+                {% endif %}
+                <p>Year: {{ movie.year }}</p>
+                <p>Director: <strong>{{ movie.director }}</strong></p>
+                <p class="date-added">
+                    Added on: {{ user_movie.added_at.strftime('%Y-%m-%d') }}
+                </p>
+                
+                <form action="{{ url_for('update_user_movie', user_id=user_id, movie_id=movie.id) }}" 
+                      method="GET" style="display: inline;">
+                    <button type="submit" class="button-update">Edit Title</button>
+                </form>
 
-                <button type="submit" class="button-update">Edit Title</button>
-            </form>
-            <form action="{{ url_for('delete_user_movie', user_id=user_id, movie_id=movie.id) }}"
-                  method="POST"
-                  style="display: inline;"
-                  onsubmit="return confirm('Are you sure you want to delete {% if user_movie.user_title_override %}{{ user_movie.user_title_override }}{% else %}{{ movie.title }}{% endif %}?');">
-
-                <button type="submit" class="button-delete">Delete</button>
-            </form>
+                <form action="{{ url_for('delete_user_movie', user_id=user_id, movie_id=movie.id) }}" 
+                      method="POST" style="display: inline;"
+                      onsubmit="return confirm('Are you sure you want to delete {{ user_movie.user_title_override or movie.title }}?');">
+                    <button type="submit" class="button-delete">Delete</button>
+                </form>
+            </div>
         </div>
-    </div>
         {% else %}
             <p>No movies in your list yet.</p>
         {% endfor %}
     </div>
-
-</body>
-</html>
+{% endblock %}
