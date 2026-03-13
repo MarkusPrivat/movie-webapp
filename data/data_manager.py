@@ -99,12 +99,12 @@ class DataManager():
         """
         try:
             stmt = (
-                select(Movie)
-                .join(UserMovies)
+                select(UserMovies, Movie)
+                .join(Movie)
                 .where(UserMovies.user_id == user_id)
                 .order_by(Movie.title)
             )
-            movies = db.session.execute(stmt).scalars().all()
+            movies = db.session.execute(stmt).all()
 
             if not movies:
                 return False, MovieMessages.NOT_IN_COLLECTION
