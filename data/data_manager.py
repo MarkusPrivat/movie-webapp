@@ -82,9 +82,10 @@ class DataManager():
             return False, f"{UserMessages.GET_ALL_USER_ERROR} '{error}'"
 
 
-    def get_movies(self, user_id) -> tuple[bool, list[Movie] | str]:
+    def get_all_movies(self, user_id: int) -> tuple[bool, list[Movie] | str]:
         """
-        Retrieves a list of all movies associated with a specific user.
+        Retrieves a list of all movies associated with a specific user,
+        ordered alphabetically by title.
 
         Args:
             user_id (int): The unique identifier of the user.
@@ -93,18 +94,55 @@ class DataManager():
             tuple[bool, list[Movie] | str]:
                 - A tuple where the first element indicates success (True/False).
                 - The second element is a list of Movie objects if successful,
-                  or an error message string if an exception occurred.
+                  or an error message string if no movies are found or an
+                  exception occurs.
         """
         try:
             stmt = (
                 select(Movie)
                 .join(UserMovies)
                 .where(UserMovies.user_id == user_id)
+                .order_by(Movie.title)
             )
             movies = db.session.execute(stmt).scalars().all()
+
+            if not movies:
+                return False, MovieMessages.NOT_IN_COLLECTION
+
             return True, movies
         except Exception as error:
             return False, f"{MovieMessages.GET_ALL_MOVIES_ERROR} '{error}'"
+
+
+    def get_movie(self, user_id: int, movie_id: int) -> tuple[bool, Movie | str]:
+        """
+        Retrieves a specific movie associated with a specific user.
+
+        Args:
+            user_id (int): The unique identifier of the user.
+            movie_id (int): The unique identifier of the movie.
+
+        Returns:
+            tuple[bool, Movie | str]:
+                - A tuple where the first element indicates success (True/False).
+                - The second element is a Movie object if successful,
+                  or an error message string if the request fails or an exception occurs.
+        """
+        try:
+            stmt = (
+                select(Movie)
+                .join(UserMovies)
+                .where(UserMovies.user_id == user_id)
+                .where(UserMovies.movie_id == movie_id)
+            )
+            movie = db.session.execute(stmt).scalars().first()
+
+            if not movie:
+                return False, MovieMessages.NOT_IN_COLLECTION
+
+            return True, movie
+        except Exception as error:
+            return False, f"{MovieMessages.GET_MOVIE_ERROR} '{error}'"
 
 
     def search_movie_at_omdb(self, movie_title: str) -> tuple[bool, dict | str]:

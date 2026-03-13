@@ -76,7 +76,7 @@ def users_movies(user_id):
         movie list for POST requests.
     """
     if request.method == 'GET':
-        success, result = data_manager.get_movies(user_id)
+        success, result = data_manager.get_all_movies(user_id)
         if not success:
             flash(result, 'error')
             return render_template('movies.html', movies=[], user_id=user_id)
@@ -132,11 +132,47 @@ def choose_movie_to_add(user_id):
 
 
 
-@app.route('/users/<int:user_id>/movies/<int:movie_id>/update', methods=['POST'])
-def update_user_movie():
-    # TODO: Den Titel eines bestimmten Films in der Liste eines Nutzers ändern,
-    #       ohne sich auf OMDb für Korrekturen zu verlassen.
-    pass
+@app.route('/users/<int:user_id>/movies/<int:movie_id>/update', methods=['GET', 'POST'])
+def update_user_movie(user_id, movie_id):
+    """
+    Handles the title update for a specific movie in a user's collection.
+
+    GET:
+        Displays the update form for the specified movie.
+    POST:
+        Processes the new title submission and updates the local database
+        override for the user-movie association.
+
+    Args:
+        user_id (int): The unique identifier of the user.
+        movie_id (int): The unique identifier of the movie.
+
+    Returns:
+        Response: Redirects to the user's movie list on success/failure,
+                  or renders the update_title template on GET.
+    """
+    if request.method == 'GET':
+        success, result = data_manager.get_movie(user_id, movie_id)
+        if not success:
+            flash(result, "error")
+            return redirect(url_for('users_movies', user_id=user_id))
+
+        return render_template('update_title.html', movie=result)
+
+    if request.method == 'POST':
+        new_title = request.form.get('new_title')
+        if not new_title:
+            flash("The title cannot be blank!", "error")
+            return redirect(url_for('update_user_movie', user_id=user_id, movie_id=movie_id))
+
+        success, result = data_manager.user_movie_title_override(user_id, movie_id, new_title)
+        if not success:
+            flash(result, "error")
+            return redirect(url_for('users_movies', user_id=user_id))
+
+        flash(result, "success")
+        return redirect(url_for('users_movies', user_id=user_id))
+
 
 
 @app.route('/users/<int:user_id>/movies/<int:movie_id>/delete', methods=['POST'])
