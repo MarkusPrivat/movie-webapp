@@ -151,13 +151,13 @@ def update_user_movie(user_id, movie_id):
         Response: Redirects to the user's movie list on success/failure,
                   or renders the update_title template on GET.
     """
-    if request.method == 'GET':
-        success, result = data_manager.get_movie(user_id, movie_id)
-        if not success:
-            flash(result, "error")
-            return redirect(url_for('users_movies', user_id=user_id))
+    success, result = data_manager.get_movie(user_id, movie_id)
+    if not success:
+        flash(result, "error")
+        return redirect(url_for('users_movies', user_id=user_id))
 
-        return render_template('update_title.html', movie=result)
+    if request.method == 'GET':
+        return render_template('update_title.html', movie=result, user_id=user_id)
 
     if request.method == 'POST':
         new_title = request.form.get('new_title')
@@ -165,7 +165,7 @@ def update_user_movie(user_id, movie_id):
             flash("The title cannot be blank!", "error")
             return redirect(url_for('update_user_movie', user_id=user_id, movie_id=movie_id))
 
-        success, result = data_manager.user_movie_title_override(user_id, movie_id, new_title)
+        success, result = data_manager.user_movie_title_override(user_id, result, new_title)
         if not success:
             flash(result, "error")
             return redirect(url_for('users_movies', user_id=user_id))
