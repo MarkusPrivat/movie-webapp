@@ -1,22 +1,32 @@
 {% extends "base.html" %}
 
 {% block content %}
-    <h1>Update Movie Title</h1>
+    <div class="center-container">
+        <section class="page-header">
+            <h1>Update Movie Title</h1>
+        </section>
 
-    <div class="movie_card">
-        <img src="{{ movie.poster_url }}" alt="{{ movie.title }}">
-        <h3>Current: {{ movie.title }}</h3>
+        <div class="user-card update-container">
+            <div class="movie-preview">
+                <img src="{{ movie.poster_url }}" alt="{{ movie.title }}" class="poster-preview">
+                <div class="preview-info">
+                    <p class="label-text">Original Title:</p>
+                    <h3>{{ movie.title }}</h3>
+                </div>
+            </div>
 
-        <form method="POST" action="{{ url_for('update_user_movie', user_id=user_id, movie_id=movie.id) }}">
-            <label for="new_title">New Title:</label>
-            <input type="text" 
-                   id="new_title" 
-                   name="new_title" 
-                   value="{{ movie.user_title_override or movie.title }}"
-                   required>
+            <form method="POST" action="{{ url_for('update_user_movie', user_id=user_id, movie_id=movie.id) }}">
+                <div class="form-group">
+                    <label for="new_title">Personal Movie Title:</label>
+                    <div class="form-row">
+                        <input type="text" id="new_title" name="new_title"
+                               value="{{ movie.user_title_override or movie.title }}" required>
 
-            <button type="submit">Update Title</button>
-            <a href="{{ url_for('users_movies', user_id=user_id) }}">Cancel</a>
-        </form>
+                        <button type="submit" class="btn-primary-wide">Save Changes</button>
+                        <a href="{{ url_for('users_movies', user_id=user_id) }}" class="btn-secondary-wide">Cancel</a>
+                    </div>
+                </div>
+            </form>
+        </div>
     </div>
 {% endblock %}

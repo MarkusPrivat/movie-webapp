@@ -1,12 +1,10 @@
 {% extends "base.html" %}
 
 {% block content %}
-    <header>
+    <section class="page-header">
         <h1>Search Results</h1>
         <a href="{{ url_for('users_movies', user_id=user_id) }}">← Back to My Collection</a>
-    </header>
-
-    <hr>
+    </section>
 
     <div class="movie-grid">
         {% for movie in movies %}
@@ -14,36 +12,37 @@
                 {% if movie.Poster != "N/A" %}
                     <img src="{{ movie.Poster }}" alt="Poster of {{ movie.Title }}">
                 {% else %}
-                    <div class="no-poster">No Image Available</div>
+                    <div class="no-poster-placeholder">No Image</div>
                 {% endif %}
+                <div class="movie-card-content">
+                    <div class="movie-info">
+                        <h3>{{ movie.Title }}</h3>
+                        <p>Year: {{ movie.Year }}</p>
+                        <p>Type: {{ movie.Type.capitalize() }}</p>
+                    </div>
 
-                <div class="card-content">
-                    <h3>{{ movie.Title }}</h3>
-                    <p>Year: {{ movie.Year }}</p>
-                    <p>Type: {{ movie.Type.capitalize() }}</p>
-
-                    <form action="{{ url_for('users_movies', user_id=user_id) }}" method="POST">
-                        <input type="hidden" name="imdb_id" value="{{ movie.imdbID }}">
-                        <input type="hidden" name="title" value="{{ movie.Title }}">
-                        <button type="submit" class="btn-confirm">Add this to my list</button>
-                    </form>
+                    <div class="movie-card-actions">
+                        <form action="{{ url_for('users_movies', user_id=user_id) }}" method="POST">
+                            <input type="hidden" name="imdb_id" value="{{ movie.imdbID }}">
+                            <input type="hidden" name="title" value="{{ movie.Title }}">
+                            <button type="submit" class="btn-primary">Add to Collection</button>
+                        </form>
+                    </div>
                 </div>
             </div>
         {% else %}
-            <div class="no-results">
+            <div class="empty-state">
                 <p>No movies found for your search. Please try a different title.</p>
             </div>
         {% endfor %}
     </div>
 
-    <hr>
-
-    <section class="search-refine-section">
+    <section class="user-card search-refine-section">
         <h3>Didn't find what you were looking for?</h3>
         <p>Refine your search to get better results:</p>
-        <form action="{{ url_for('choose_movie_to_add', user_id=user_id) }}" method="POST" class="search-form">
+        <form action="{{ url_for('choose_movie_to_add', user_id=user_id) }}" method="POST" class="form-row">
             <input type="text" name="movie_title" placeholder="Search again (e.g. Batman Begins)..." required>
-            <button type="submit">Search</button>
+            <button type="submit" class="btn-primary-wide">Search</button>
         </form>
     </section>
 {% endblock %}
