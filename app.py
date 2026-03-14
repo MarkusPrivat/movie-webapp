@@ -1,3 +1,61 @@
+"""
+app.py – Main application module for the Movie Collection Manager.
+
+This Flask-based web application allows users to manage their personal movie collections,
+search for movies using the OMDb API, and customize movie titles in their collections.
+It provides a complete CRUD interface for users and their movie relationships,
+with proper error handling and user feedback.
+
+Key Features:
+-------------
+- **User Management**: Create and view user accounts.
+- **Movie Collection**: Add, view, update, and remove movies from user collections.
+- **OMDb Integration**: Search for movies using the OMDb API and add them to collections.
+- **Title Customization**: Allow users to override movie titles in their personal collections.
+- **Error Handling**: Comprehensive error handling with user-friendly flash messages.
+- **Database Initialization**: Automatic database table creation on first run.
+
+Routes:
+-------
+    / (GET):
+        Displays all registered users.
+
+    /users (POST):
+        Creates a new user.
+
+    /users/<user_id>/movies (GET/POST):
+        Views a user's movie collection or adds new movies via IMDb ID.
+
+    /users/<user_id>/omdb_result (POST):
+        Searches for movies via OMDb API and displays results.
+
+    /users/<user_id>/movies/<movie_id>/update (GET/POST):
+        Updates the custom title for a movie in a user's collection.
+
+    /users/<user_id>/movies/<movie_id>/delete (POST):
+        Removes a movie from a user's collection.
+
+Error Handlers:
+--------------
+    404 Not Found:
+        Renders a custom 404 error page.
+
+    500 Internal Server Error:
+        Logs the error and renders a custom 500 error page.
+
+Database:
+---------
+- Uses SQLAlchemy ORM with the following models:
+  - User: Represents application users.
+  - Movie: Stores movie metadata.
+  - UserMovies: Association table for the many-to-many relationship between users and movies.
+
+Initialization:
+---------------
+- Automatically creates database tables if they don't exist (via `init_db()`).
+- Configures the Flask application using settings from `config.AppSettings`.
+- Initializes the DataManager for database operations and OMDb API access.
+"""
 from flask import Flask, flash, render_template, request, redirect, url_for
 from sqlalchemy import inspect
 
@@ -17,14 +75,14 @@ db.init_app(app)
 @app.route('/')
 def home():
     """
-    Renders the home page, displaying a list of all registered users
-    and a form to add a new user.
+    Renders the home page, displaying all registered users.
 
-    Fetches user data from the DataManager. If the retrieval fails,
-    an error message is flashed to the user.
+    Fetches the user list from the DataManager. If the database retrieval fails,
+    an error message is flashed and an empty list is passed to the template
+    to prevent rendering errors.
 
     Returns:
-        Response: The rendered HTML page with the list of users.
+        str: The rendered 'home.html' template with the users' data.
     """
     success, result = data_manager.get_all_users()
 
@@ -38,14 +96,15 @@ def home():
 @app.route('/users', methods=['POST'])
 def add_user():
     """
-    Handles the POST request to add a new user to the system.
+    Handles the creation of a new user via form submission.
 
-    Retrieves the username from the form data and uses the DataManager
-    to persist it to the database. Flashes a success or error message
-    based on the outcome and redirects the user back to the home page.
+    Extracts the 'name' from the POST request. If a name is provided,
+    it attempts to persist the new user via the DataManager.
+    A feedback message is flashed to the user before redirecting
+    to the home page.
 
     Returns:
-        Response: A redirect to the 'home' route.
+        Response: A redirect to the 'home' endpoint.
     """
     user_name = request.form.get('name')
 
@@ -59,26 +118,23 @@ def add_user():
 @app.route('/users/<int:user_id>/movies', methods=['GET', 'POST'])
 def users_movies(user_id):
     """
-    Handles the viewing and adding of movies for a specific user.
+    Handles viewing the user's collection and adding new movies.
 
     Args:
         user_id (int): The unique identifier of the user.
 
     Behavior:
-        GET: Retrieves the user's movie list from the data manager and
-             renders the 'movies.html' template.
-        POST: Adds a movie to the user's collection using its IMDb ID.
-              Validates the presence of 'imdb_id' and triggers a flash
-              message based on the operation's success.
+        - GET: Retrieves the movie list. If the collection is empty or an error
+               occurs, it silently renders the page with an empty list.
+        - POST: Processes an IMDb ID to add a movie. Validates the input and
+                provides feedback via flash messages.
 
     Returns:
-        A rendered template for GET requests, or a redirect to the user's
-        movie list for POST requests.
+        Union[str, Response]: The 'movies.html' template or a redirect.
     """
     if request.method == 'GET':
         success, result = data_manager.get_all_movies(user_id)
         if not success:
-            flash(result, 'error')
             return render_template('movies.html', movies=[], user_id=user_id)
         return render_template('movies.html', movies=result, user_id=user_id)
 
@@ -96,22 +152,22 @@ def users_movies(user_id):
 @app.route('/users/<int:user_id>/omdb_result', methods=['POST'])
 def choose_movie_to_add(user_id):
     """
-    Searches for movies via the OMDb API and displays the results.
+    Searches for movies via the OMDb API and displays potential matches.
 
     Args:
         user_id (int): The unique identifier of the user performing the search.
 
     Behavior:
-        Extracts the 'movie_title' from the request form, queries the OMDb API
-        via the data manager, and renders the 'omdb_result.html' template
-        with the list of found movies.
-
-        If the API call fails or no movies are found, it flashes an
-        appropriate message and redirects the user back to their collection.
+        - Extracts the 'movie_title' from the form.
+        - Queries the OMDb API for a list of matches.
+        - If the API request fails (e.g., network error), it redirects back
+          to the collection with an error message.
+        - If the API succeeds but finds no movies, it flashes an info message
+          and renders the results page with an empty state.
 
     Returns:
-        Rendered 'omdb_result.html' template if movies are found, or a
-        redirect to the user's movie list.
+        Union[str, Response]: The 'omdb_result.html' template with found movies
+        or a redirect on API failure.
     """
     movie_title = request.form.get('movie_title')
     success, result = data_manager.search_movie_at_omdb(movie_title)
@@ -135,21 +191,20 @@ def choose_movie_to_add(user_id):
 @app.route('/users/<int:user_id>/movies/<int:movie_id>/update', methods=['GET', 'POST'])
 def update_user_movie(user_id, movie_id):
     """
-    Handles the title update for a specific movie in a user's collection.
-
-    GET:
-        Displays the update form for the specified movie.
-    POST:
-        Processes the new title submission and updates the local database
-        override for the user-movie association.
+    Manages the local title override for a movie in a user's collection.
 
     Args:
         user_id (int): The unique identifier of the user.
         movie_id (int): The unique identifier of the movie.
 
+    Behavior:
+        - GET: Renders the update form for the specific movie entry.
+        - POST: Validates the 'new_title' and updates the association in the
+                database. Ensures titles are not blank.
+
     Returns:
-        Response: Redirects to the user's movie list on success/failure,
-                  or renders the update_title template on GET.
+        Union[str, Response]: The 'update_title.html' template or a redirect
+        to the user's movie list.
     """
     success, result = data_manager.get_movie(user_id, movie_id)
     if not success:

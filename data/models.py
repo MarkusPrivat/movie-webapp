@@ -16,17 +16,6 @@ Key Features:
 
 Database Schema:
 ----------------
-    UserMovies (Association Table):
-        - user_id (FK): References the User table.
-        - movie_id (FK): References the Movie table.
-        - added_at: When the film was added
-        - Composite primary key (user_id, movie_id).
-
-    User:
-        - id: Auto-incrementing primary key.
-        - name: User's display name (max 100 chars, required).
-        - user_movies_link: One-to-many relationship to UserMovies.
-
     Movie:
         - id: Auto-incrementing primary key.
         - title: Movie title (max 200 chars, required).
@@ -34,6 +23,18 @@ Database Schema:
         - year: Release year (required).
         - poster_url: Optional URL to movie poster image.
         - movie_users_link: One-to-many relationship to UserMovies.
+
+    User:
+    - id: Auto-incrementing primary key.
+    - name: User's display name (max 100 chars, required).
+    - user_movies_link: One-to-many relationship to UserMovies.
+
+    UserMovies (Association Table):
+        - user_id (FK): References the User table.
+        - movie_id (FK): References the Movie table.
+        - added_at: When the film was added
+        - user_title_override: User's custom movie title
+        - Composite primary key (user_id, movie_id).
 
 Relationships:
 --------------
@@ -60,45 +61,50 @@ class Base(DeclarativeBase):
 db = SQLAlchemy(model_class=Base)
 
 
-class UserMovies(db.Model):
+class Movie(db.Model):
     """
-    Association model representing the relationship between a User and a Movie.
-    Named 'UserMovies' to clearly indicate the link between the two entities.
+    Represents a movie record in the database.
 
     Attributes:
-        user_id (int): Foreign key referencing the user. Part of the composite primary key.
-        movie_id (int): Foreign key referencing the movie. Part of the composite primary key.
-        user (User): Relationship back to the User instance.
-        movie (Movie): Relationship back to the Movie instance.
+        id (int): Unique identifier and primary key for the movie.
+        title (str): The official title of the movie (max 200 chars).
+        director (str): The director of the movie (max 100 chars).
+        year (int): The release year.
+        poster_url (Optional[str]): A link to the movie poster image.
+        imdb_id (str): The unique IMDb identifier from the OMDb API.
+        movie_users_link (List[UserMovies]): A list of association objects
+            tracking which users have added this movie to their favorites.
     """
-    __tablename__ = "user_movies"
+    __tablename__ = "movies"
 
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), primary_key=True)
-    movie_id: Mapped[int] = mapped_column(ForeignKey("movies.id"), primary_key=True)
-    added_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc))
-    user_title_override: Mapped[Optional[str]] = mapped_column(String(200))
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    director: Mapped[str] = mapped_column(String(100), nullable=False)
+    year: Mapped[int] = mapped_column(Integer, nullable=False)
+    poster_url: Mapped[Optional[str]] = mapped_column(String(500))
+    imdb_id: Mapped[str] = mapped_column(String(20), unique=True, nullable=False)
 
-    # Relationships to the parent models
-    user: Mapped["User"] = relationship(back_populates="user_movies_link")
-    movie: Mapped["Movie"] = relationship(back_populates="movie_users_link")
+    movie_users_link: Mapped[List["UserMovies"]] = relationship(
+        back_populates="movie", cascade="all, delete-orphan"
+    )
 
     def __repr__(self):
         """
-        Return a developer-friendly string representation of the UserMovies link.
+        Return a developer-friendly representation of the Movie instance.
 
-        Useful for debugging in the console or logs to quickly identify
-        which user is linked to which movie.
+        Includes the unique ID, title, and release year to help identify
+        specific movie records during debugging.
         """
-        return f"<UserMovies(user_id={self.user_id}, movie_id={self.movie_id})>"
+        return f"<Movie(id={self.id}, title='{self.title}', year={self.year})>"
 
     def __str__(self):
         """
-        Return a human-readable string describing the relationship.
+        Return a human-readable representation of the movie.
 
-        This provides a simple textual summary of the connection
-        between a user and their liked movie.
+        This is used for display purposes, such as in UI dropdowns or
+        lists, showing the title followed by the release year.
         """
-        return f"User {self.user_id} likes Movie {self.movie_id}"
+        return f"{self.title} ({self.year})"
 
 
 class User(db.Model):
@@ -147,47 +153,42 @@ class User(db.Model):
         return self.name
 
 
-class Movie(db.Model):
+class UserMovies(db.Model):
     """
-    Represents a movie record in the database.
+    Association model representing the relationship between a User and a Movie.
+    Named 'UserMovies' to clearly indicate the link between the two entities.
 
     Attributes:
-        id (int): Unique identifier and primary key for the movie.
-        title (str): The official title of the movie (max 200 chars).
-        director (str): The director of the movie (max 100 chars).
-        year (int): The release year.
-        poster_url (Optional[str]): A link to the movie poster image.
-        imdb_id (str): The unique IMDb identifier from the OMDb API.
-        movie_users_link (List[UserMovies]): A list of association objects
-            tracking which users have added this movie to their favorites.
+        user_id (int): Foreign key referencing the user. Part of the composite primary key.
+        movie_id (int): Foreign key referencing the movie. Part of the composite primary key.
+        user (User): Relationship back to the User instance.
+        movie (Movie): Relationship back to the Movie instance.
     """
-    __tablename__ = "movies"
+    __tablename__ = "user_movies"
 
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    title: Mapped[str] = mapped_column(String(200), nullable=False)
-    director: Mapped[str] = mapped_column(String(100), nullable=False)
-    year: Mapped[int] = mapped_column(Integer, nullable=False)
-    poster_url: Mapped[Optional[str]] = mapped_column(String(500))
-    imdb_id: Mapped[str] = mapped_column(String(20), unique=True, nullable=False)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), primary_key=True)
+    movie_id: Mapped[int] = mapped_column(ForeignKey("movies.id"), primary_key=True)
+    added_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc))
+    user_title_override: Mapped[Optional[str]] = mapped_column(String(200))
 
-    movie_users_link: Mapped[List["UserMovies"]] = relationship(
-        back_populates="movie", cascade="all, delete-orphan"
-    )
+    # Relationships to the parent models
+    user: Mapped["User"] = relationship(back_populates="user_movies_link")
+    movie: Mapped["Movie"] = relationship(back_populates="movie_users_link")
 
     def __repr__(self):
         """
-        Return a developer-friendly representation of the Movie instance.
+        Return a developer-friendly string representation of the UserMovies link.
 
-        Includes the unique ID, title, and release year to help identify
-        specific movie records during debugging.
+        Useful for debugging in the console or logs to quickly identify
+        which user is linked to which movie.
         """
-        return f"<Movie(id={self.id}, title='{self.title}', year={self.year})>"
+        return f"<UserMovies(user_id={self.user_id}, movie_id={self.movie_id})>"
 
     def __str__(self):
         """
-        Return a human-readable representation of the movie.
+        Return a human-readable string describing the relationship.
 
-        This is used for display purposes, such as in UI dropdowns or
-        lists, showing the title followed by the release year.
+        This provides a simple textual summary of the connection
+        between a user and their liked movie.
         """
-        return f"{self.title} ({self.year})"
+        return f"User {self.user_id} likes Movie {self.movie_id}"

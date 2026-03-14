@@ -1,3 +1,61 @@
+"""
+data_manager.py – Central data management service for the movie-user relationship system.
+
+This class serves as the primary interface between the application's business logic
+and its data sources, including both the SQLAlchemy database and the OMDb API.
+It encapsulates all database operations and external API calls, providing a
+consistent, transaction-safe interface for managing users, movies, and their
+relationships.
+
+Key Responsibilities:
+---------------------
+- **Database Operations**: CRUD operations for users and movies.
+- **Relationship Management**: Handling the many-to-many associations between users and movies.
+- **External API Integration**: Fetching movie metadata from OMDb.
+- **Transaction Management**: Ensuring data integrity through proper commit/rollback handling.
+- **Error Handling**: Providing meaningful error messages for all operations.
+
+Core Features:
+--------------
+- **User Management**: Create and retrieve user records.
+- **Movie Management**: Add, remove, and retrieve movies with support for custom titles.
+- **OMDb Integration**: Search for movies and fetch detailed metadata.
+- **Association Handling**: Link/unlink movies to/from users with duplicate prevention.
+- **Title Customization**: Allow users to override movie titles in their personal collections.
+
+Dependencies:
+-------------
+- SQLAlchemy: For database operations and ORM.
+- OMDbAPI: For fetching external movie data.
+- models: Database model definitions (User, Movie, UserMovies).
+- messages: Predefined user-facing message strings.
+
+Public Methods:
+---------------
+    init_app(app): Initializes the service with Flask app configuration.
+    add_movie_by_id(user_id, imdb_id): Adds a movie to a user's collection via OMDb ID.
+    add_user(name): Creates a new user in the database.
+    delete_movie(user_id, movie): Removes a movie from a user's collection.
+    get_all_users(): Retrieves all registered users.
+    get_all_movies(user_id): Gets all movies for a specific user.
+    get_movie(user_id, movie_id): Retrieves a specific movie for a user.
+    search_movie_at_omdb(movie_title): Searches for movies via OMDb API.
+    user_movie_title_override(user_id, movie, new_title): Updates a custom title for a user's movie.
+
+Private Methods:
+----------------
+    _get_or_create_movie(imdb_id, movie_data): Retrieves or creates a movie record.
+    _get_user_movie_link(movie, user_id): Finds the association between a user and movie.
+    _link_movie_to_user(movie, user_id): Creates a new user-movie association.
+
+Error Handling:
+---------------
+All methods return tuples of (success: bool, result: Union[Any, str]) where:
+- success: Indicates whether the operation completed successfully.
+- result: Contains either the operation result (on success) or an error message (on failure).
+
+Database transactions are automatically rolled back on exceptions to maintain data integrity.
+"""
 from sqlalchemy import select
 
 from data.models import db, User, Movie, UserMovies
@@ -6,7 +64,22 @@ from messages import UserMessages, MovieMessages
 
 
 class DataManager():
-    #TODO: Define Crud operations as methods
+    """
+    Acts as the central orchestrator for all data-related operations in the application.
+
+    This class provides a unified interface for interacting with the database
+    and external services (like the OMDb API). It encapsulates business logic
+    for managing users, their movie collections, and title customizations,
+    ensuring that database transactions are handled consistently and safely.
+
+    Attributes:
+        omdb_api (Optional[OMDbAPI]): Service client for fetching movie metadata
+            from the OMDb API. Initialized via 'init_app'.
+
+    Notes:
+        All operations that modify the database state use 'db.session.commit()'
+        or 'db.session.rollback()' to ensure data integrity.
+    """
     def __init__(self):
         """
         Initializes the DataManager instance.
@@ -37,6 +110,39 @@ class DataManager():
         self.omdb_api = OMDbAPI(api_key, base_url)
 
 
+    def add_movie_by_id(self, user_id: int, imdb_id: str) -> tuple[bool, str]:
+        """
+        Adds a movie to a user's collection by fetching details from OMDb.
+
+        Args:
+            user_id (int): The unique identifier of the user.
+            imdb_id (str): The unique IMDb identifier for the movie.
+
+        Behavior:
+            1. Fetches movie details from the OMDb API via 'omdb_api'.
+            2. Ensures the movie exists in the database using '_get_or_create_movie'.
+            3. Links the movie to the user using '_link_movie_to_user'.
+            4. Performs a database rollback in case of any exceptions to
+               ensure data integrity.
+
+        Returns:
+            tuple[bool, str]:
+                - A tuple where the first element indicates success (True/False).
+                - A message string describing the result or any error occurred.
+        """
+        try:
+            success, result = self.omdb_api.get_movie_by_id(imdb_id)
+            if not success:
+                return False, f"API Error: {result}"
+
+            movie = self._get_or_create_movie(imdb_id, result)
+            return self._link_movie_to_user(movie, user_id)
+
+        except Exception as error:
+            db.session.rollback()
+            return False, f"{MovieMessages.ADD_ERROR} {str(error)}"
+
+
     def add_user(self, name: str) -> tuple[bool, str]:
         """
         Adds a new user to the database.
@@ -60,6 +166,32 @@ class DataManager():
         except Exception as error:
             db.session.rollback()
             return False, f"{UserMessages.CREATE_ERROR} '{error}'"
+
+
+    def delete_movie(self, user_id: int, movie: Movie) -> tuple[bool, str]:
+        """
+        Removes a movie from a user's collection by deleting the association link.
+
+        Args:
+            movie (Movie): The movie object to be removed.
+            user_id (int): The unique identifier of the user.
+
+        Returns:
+            tuple[bool, str]:
+                - A tuple where the first element indicates success (True/False).
+                - The second element is a success or error message string.
+        """
+        try:
+            user_movie_link = self._get_user_movie_link(movie, user_id)
+            if not user_movie_link:
+                return False, MovieMessages.NOT_IN_COLLECTION
+
+            db.session.delete(user_movie_link)
+            db.session.commit()
+            return True, MovieMessages.REMOVE_SUCCESS
+        except Exception as error:
+            db.session.rollback()
+            return False, f"{MovieMessages.REMOVE_ERROR} {error}"
 
 
     def get_all_users(self) -> tuple[bool, list[User] | str]:
@@ -164,37 +296,31 @@ class DataManager():
         return True, result
 
 
-    def add_movie_by_id(self, user_id: int, imdb_id: str) -> tuple[bool, str]:
+    def user_movie_title_override(
+            self,
+            user_id: int,
+            movie: Movie,
+            new_title: str) -> tuple[bool, str]:
         """
-        Adds a movie to a user's collection by fetching details from OMDb.
+        Updates the local title override for a specific movie in a user's collection.
 
         Args:
             user_id (int): The unique identifier of the user.
-            imdb_id (str): The unique IMDb identifier for the movie.
-
-        Behavior:
-            1. Fetches movie details from the OMDb API via 'omdb_api'.
-            2. Ensures the movie exists in the database using '_get_or_create_movie'.
-            3. Links the movie to the user using '_link_movie_to_user'.
-            4. Performs a database rollback in case of any exceptions to
-               ensure data integrity.
+            movie (Movie): The movie instance to be updated.
+            new_title (str): The new title to be set for this specific user.
 
         Returns:
             tuple[bool, str]:
-                - A tuple where the first element indicates success (True/False).
-                - A message string describing the result or any error occurred.
+                - A tuple indicating success (True/False).
+                - A message string describing the outcome of the update operation.
         """
-        try:
-            success, result = self.omdb_api.get_movie_by_id(imdb_id)
-            if not success:
-                return False, f"API Error: {result}"
+        user_movie_link = self._get_user_movie_link(movie, user_id)
+        if not user_movie_link:
+            return False, MovieMessages.NOT_IN_COLLECTION
 
-            movie = self._get_or_create_movie(imdb_id, result)
-            return self._link_movie_to_user(movie, user_id)
-
-        except Exception as error:
-            db.session.rollback()
-            return False, f"{MovieMessages.ADD_ERROR} {str(error)}"
+        user_movie_link.user_title_override = new_title
+        db.session.commit()
+        return True, MovieMessages.TITLE_UPDATE
 
 
     def _get_or_create_movie(self, imdb_id: str, movie_data) -> Movie:
@@ -223,6 +349,23 @@ class DataManager():
         return movie
 
 
+    def _get_user_movie_link(self, movie: Movie, user_id: int) -> UserMovies | None:
+        """
+        Retrieves the association link between a user and a movie.
+
+        Args:
+            movie (Movie): The movie instance to check.
+            user_id (int): The unique identifier of the user.
+
+        Returns:
+            UserMovies | None: The association object if it exists, otherwise None.
+        """
+        return db.session.query(UserMovies).filter_by(
+            user_id=user_id,
+            movie_id=movie.id
+        ).first()
+
+
     def _link_movie_to_user(self, movie: Movie, user_id: int) -> tuple[bool, str]:
         """
         Creates an association between a user and a movie if it doesn't already exist.
@@ -244,70 +387,3 @@ class DataManager():
         db.session.add(new_link)
         db.session.commit()
         return True, MovieMessages.ADD_SUCCESS
-
-    def _get_user_movie_link(self, movie: Movie, user_id: int) -> UserMovies | None:
-        """
-        Retrieves the association link between a user and a movie.
-
-        Args:
-            movie (Movie): The movie instance to check.
-            user_id (int): The unique identifier of the user.
-
-        Returns:
-            UserMovies | None: The association object if it exists, otherwise None.
-        """
-        return db.session.query(UserMovies).filter_by(
-            user_id=user_id,
-            movie_id=movie.id
-        ).first()
-
-    def user_movie_title_override(
-            self,
-            user_id: int,
-            movie: Movie,
-            new_title: str) -> tuple[bool, str]:
-        """
-        Updates the local title override for a specific movie in a user's collection.
-
-        Args:
-            user_id (int): The unique identifier of the user.
-            movie (Movie): The movie instance to be updated.
-            new_title (str): The new title to be set for this specific user.
-
-        Returns:
-            tuple[bool, str]:
-                - A tuple indicating success (True/False).
-                - A message string describing the outcome of the update operation.
-        """
-        user_movie_link = self._get_user_movie_link(movie, user_id)
-        if not user_movie_link:
-            return False, MovieMessages.NOT_IN_COLLECTION
-
-        user_movie_link.user_title_override = new_title
-        db.session.commit()
-        return True, MovieMessages.TITLE_UPDATE
-
-    def delete_movie(self, user_id: int, movie: Movie) -> tuple[bool, str]:
-        """
-        Removes a movie from a user's collection by deleting the association link.
-
-        Args:
-            movie (Movie): The movie object to be removed.
-            user_id (int): The unique identifier of the user.
-
-        Returns:
-            tuple[bool, str]:
-                - A tuple where the first element indicates success (True/False).
-                - The second element is a success or error message string.
-        """
-        try:
-            user_movie_link = self._get_user_movie_link(movie, user_id)
-            if not user_movie_link:
-                return False, MovieMessages.NOT_IN_COLLECTION
-
-            db.session.delete(user_movie_link)
-            db.session.commit()
-            return True, MovieMessages.REMOVE_SUCCESS
-        except Exception as error:
-            db.session.rollback()
-            return False, f"{MovieMessages.REMOVE_ERROR} {error}"
